@@ -1,0 +1,66 @@
+---
+# Install External Secrets Operator
+#
+# Run against: kubernetes_master only
+# Usage: ansible-playbook -i inventory install-eso.yml
+
+- name: Install External Secrets Operator
+  hosts: kubernetes_master
+  become: true
+  tasks:
+
+    - name: Install required Python packages
+      pip:
+        name: [kubernetes, pyyaml]
+        state: present
+        executable: pip3
+
+    - name: Add external-secrets Helm repository
+      kubernetes.core.helm_repository:
+        name: external-secrets
+        repo_url: https://charts.external-secrets.io
+        state: present
+
+    - name: Update Helm repositories
+      shell: helm repo update
+      changed_when: false
+
+    - name: Create external-secrets-system namespace
+      kubernetes.core.k8s:
+        name: external-secrets-dev
+        api_version: v1
+        kind: Namespace
+        state: present
+        kubeconfig: /etc/kubernetes/admin.conf
+
+    - name: Install External Secrets Operator
+      kubernetes.core.helm:
+        name: external-secrets
+        chart_ref: external-secrets/external-secrets
+        release_namespace: external-secrets-dev
+        kubeconfig: /etc/kubernetes/admin.conf
+        values:
+          installCRDs: true
+
+    - name: Wait for ESO to be ready
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        name: external-secrets
+        namespace: external-secrets-dev
+        kubeconfig: /etc/kubernetes/admin.conf
+        wait: yes
+        wait_condition:
+          type: Available
+          status: "True"
+        wait_timeout: 300
+
+    - name: Verify pods
+      shell: kubectl get pods -n external-secrets-dev
+      register: result
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      changed_when: false
+
+    - name: Show result
+      debug:
+        msg: "{{ result.stdout }}"
