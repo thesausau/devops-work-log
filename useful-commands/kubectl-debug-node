@@ -1,0 +1,20 @@
+# `kubectl debug node`
+
+**Description:**  
+When you are able to run `kubectl` but do not have direct access (SSH) to the nodes in the cluster.
+
+## Command
+
+```bash
+kubectl debug node/<node-name> -it --image=ubuntu -- chroot /host bash
+```
+
+## What it does
+
+- Creates a temporary privileged debug pod on the specified node.
+- Uses the specified image (e.g., `ubuntu`) for the pod.
+- Automatically mounts the node's root filesystem (/) at pods's `/host`.
+- Opens an interactive shell (bash) inside the debug pod.
+
+
+This changes the shell's root directory to the node's root filesystem, allowing you to inspect and troubleshoot the node as if you were logged into it directly.
